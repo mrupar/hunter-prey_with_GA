@@ -1,50 +1,48 @@
 import random
 
 class Buki:
-    def __init__(self, energy, speed, iq):
+    def __init__(self, energy, speed):
         self.energy = energy
         self.speed = speed
-        self.iq = iq
 
     def fitness(self):
-        return int((self.energy - self.speed - self.iq*10) )
+        return (self.energy - self.speed)
 
 class Kiki(Buki):
-    def __init__(self, energy, speed, iq, attack):
-        super().__init__(energy, speed, iq)
+    def __init__(self, energy, speed, attack):
+        super().__init__(energy, speed)
         self.attack = attack
 
     def __str__(self):
-        return f"Kiki | Fitness: {self.fitness()} | Energy: {self.energy} | Speed: {self.speed} | IQ: {self.iq} | Attack: {self.attack}"
+        return f"Kiki | Fitness: {self.fitness()} | Energy: {self.energy} | Speed: {self.speed} | Attack: {self.attack}"
 
     def fitness(self, add=0):
         return super().fitness() + add
 
 class Buba(Buki):
-    def __init__(self, energy, speed, iq, defense):
-        super().__init__(energy, speed, iq)
+    def __init__(self, energy, speed, defense):
+        super().__init__(energy, speed)
         self.defense = defense
 
     def __str__(self):
-        return f"Buba | Fitness: {self.fitness()} | Energy: {self.energy} | Speed: {self.speed} | IQ: {self.iq} | Defense: {self.defense}"
+        return f"Buba | Fitness: {self.fitness()} | Energy: {self.energy} | Speed: {self.speed}| Defense: {self.defense}"
 
     def fitness(self, add=0):
         return super().fitness() + add
-    
+
 def create_population(size):
     kiki_population = []
     buba_population = []
     for _ in range(size):
         energy = random.randint(0,100)
         speed = random.randint(0,20)
-        iq = random.random() * 2
         if random.random() > 0.5: 
             attack = random.randint(0,10)
-            kiki = Kiki(energy=energy, speed=speed, iq=iq, attack=attack)
+            kiki = Kiki(energy=energy, speed=speed, attack=attack)
             kiki_population.append(kiki)
         else: 
             defense = random.randint(0,10)
-            buba = Buba(energy=energy, speed=speed, iq=iq, defense=defense)
+            buba = Buba(energy=energy, speed=speed, defense=defense)
             buba_population.append(buba)
     return {"kiki": kiki_population, "buba": buba_population}
 
@@ -53,14 +51,12 @@ def crossover(parent1, parent2):
         child = Kiki(
             (parent1.energy + parent2.energy) / 2,
             (parent1.speed + parent2.speed) / 2, 
-            (parent1.iq + parent2.iq) / 2, 
             (parent1.attack + parent2.attack) / 2
         )
     elif isinstance(parent1, Buba) and isinstance(parent2, Buba):
         child = Buba(
             (parent1.energy + parent2.energy) / 2,
             (parent1.speed + parent2.speed) / 2, 
-            (parent1.iq + parent2.iq) / 2, 
             (parent1.defense + parent2.defense) / 2
         )
     else:
@@ -72,8 +68,6 @@ def mutate(buki, mutation_rate):
         buki.energy = random.randint(0, 100)
     if random.random() < mutation_rate:
         buki.speed = random.randint(0, 20)
-    if random.random() < mutation_rate:
-        buki.iq = random.uniform(0, 2)
     if isinstance(buki, Kiki) and random.random() < mutation_rate:
         buki.attack = random.uniform(0, 100)
     if isinstance(buki, Buba) and random.random() < mutation_rate:
@@ -88,13 +82,13 @@ def tournament_selection(population, tournament_size=3):
     return selected
 
 def hunt(kiki, buba):
-    if int(kiki.attack * kiki.iq) > int(buba.defense * buba.iq):
+    if int(kiki.attack) > int(buba.defense):
         buba.energy -= kiki.attack 
         kiki.fitness(100)
         buba.fitness(-50) 
         if buba.energy < 20:
             del buba
-    elif int(kiki.attack * kiki.iq) < int(buba.defense * buba.iq):
+    elif int(kiki.attack) < int(buba.defense):
         kiki.energy -= buba.defense
         buba.fitness(100)
         kiki.fitness(-50)   
@@ -109,15 +103,18 @@ def run_genetic_algorithm(population_size, generations, mutation_rate):
     population = create_population(population_size)
     kiki_population = population["kiki"]
     buba_population = population["buba"]
+
+    kiki_selected = tournament_selection(kiki_population)
+    buba_selected = tournament_selection(buba_population)
     
     for generation in range(generations):
-        for kiki in kiki_population:
+        for kiki in kiki_selected:
             buba = random.choice(buba_population)
             if kiki.speed > buba.speed:
                 hunt(kiki, buba)
-
-        kiki_selected = tournament_selection(kiki_population)
-        buba_selected = tournament_selection(buba_population)
+            else:
+                buba.fitness(50)
+                kiki.fitness(-50)
 
         new_kiki_population = []
         new_buba_population = []
@@ -156,7 +153,7 @@ def run_genetic_algorithm(population_size, generations, mutation_rate):
     return {"kiki": kiki_population, "buba": buba_population}
 
 # Run the genetic algorithm
-final_population = run_genetic_algorithm(population_size=1000, generations=500, mutation_rate=0.1)
+final_population = run_genetic_algorithm(population_size=1000, generations=50000, mutation_rate=0.1)
 best_kiki = max(final_population["kiki"], key=lambda individual: individual.fitness())
 best_buba = max(final_population["buba"], key=lambda individual: individual.fitness())
 print(f"Best Kiki: {best_kiki}")
